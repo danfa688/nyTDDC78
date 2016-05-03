@@ -12,6 +12,7 @@
  
 /* Global variables*/
 pixel* src;
+pixel* intermediate;
 struct thread_data{
 	long threadId; 
 	int radius;
@@ -22,16 +23,16 @@ struct thread_data thread_data_array[NUM_THREADS];
 
 pthread_mutex_t mutex;
 pthread_cond_t cond;
-long reading_file_done=0;
+long reading_file_done;
+long n_t_done_filter_part_1;
+long n_t_done_filter_part_2;
 
 int lproblem[NUM_THREADS][2];
-int ldata[NUM_THREADS][2];
 double w[MAX_RAD];
+int xsize, ysize;
 
 /* Function declaration */
 void calculate_local_problem_size(const int x,const int y,const int np, int lproblem[][2]);
-void calculate_local_allocation_size(int ldata[][2], int lproblem[][2],int const ysize, const int np, const int radius);
-
 
 void *root_t(void *tParam) {
 	struct thread_data *myData;
@@ -48,7 +49,8 @@ void *root_t(void *tParam) {
 	
  	struct timespec stime, etime;
 	src = malloc(MAX_PIXELS*sizeof(*src));
-	int xsize, ysize, colmax;
+	intermediate = malloc(MAX_PIXELS*sizeof(*intermediate));
+	int colmax;
 	
 	/* read file */
 	if(read_ppm (infile, &xsize, &ysize, &colmax, (char *) src) != 0){
@@ -63,35 +65,53 @@ void *root_t(void *tParam) {
 	printf("Has read the image, generating coefficients\n");
 	
 	get_gauss_weights(radius, w);
-
-	pthread_mutex_lock(&mutex);
 	calculate_local_problem_size(xsize, ysize, NUM_THREADS, lproblem);
-	calculate_local_allocation_size(ldata, lproblem, ysize , NUM_THREADS, radius);
 	
+	pthread_mutex_lock(&mutex);
 	reading_file_done = 1;
-    pthread_cond_signal(&cond);
-    
+    pthread_cond_signal(&cond); 
     pthread_mutex_unlock(&mutex);
 
-    //printf("Calling filter\n");
+    printf("Calling filter\n");
 
-    //clock_gettime(CLOCK_REALTIME, &stime);
+    clock_gettime(CLOCK_REALTIME, &stime);
+	
+    //blurfilter_part_1(xsize, src, radius, w, intermediate, lproblem[tId][0], lproblem[tId][1]);
+    
+    /* Check all t done filtering part 1 
+    pthread_mutex_lock(&mutex);
+    n_t_done_filter_part_1++;
+    pthread_cond_signal(&cond);
+    while(n_t_done_filter_part_1<NUM_THREADS){
+    	pthread_cond_wait(&cond, &mutex);
+    }
+    pthread_mutex_unlock(&mutex);
+    */
+    //blurfilter_part_2(xsize, ysize, src, radius, w, intermediate, lproblem[tId][0], lproblem[tId][1]);
+    
+    /* Check all t done filtering part 2 
+    pthread_mutex_lock(&mutex);
+    n_t_done_filter_part_2++;
+    pthread_cond_signal(&cond);
+    while(n_t_done_filter_part_2<NUM_THREADS){
+    	pthread_cond_wait(&cond, &mutex);
+    }
+    pthread_mutex_unlock(&mutex);
+    	*/
+    clock_gettime(CLOCK_REALTIME, &etime);
 
-    //blurfilter(xsize, ysize, src, radius, w);
-
-    //clock_gettime(CLOCK_REALTIME, &etime);
-
-    //printf("Filtering took: %g secs\n", (etime.tv_sec  - stime.tv_sec) +
-	  // 1e-9*(etime.tv_nsec  - stime.tv_nsec)) ;
+    printf("Filtering took: %g secs\n", (etime.tv_sec  - stime.tv_sec) +
+	   1e-9*(etime.tv_nsec  - stime.tv_nsec)) ;
 
     /* write result */
-    //printf("Writing output file\n");
+    printf("Writing output file\n");
     
-    //if(write_ppm (argv[3], xsize, ysize, (char *)src) != 0)
+    //if(write_ppm (outfile, xsize, ysize, (char *)src) != 0)
       //exit(1);
-    
+      
+   printf("Root thread return\n");
+   return NULL;
 }
-
 
 void *other_t(void *tParam) {
 	struct thread_data *myData;
@@ -102,8 +122,6 @@ void *other_t(void *tParam) {
 	tId = myData->threadId;
 	radius = myData->radius;
 
-	double w[MAX_RAD];
-    get_gauss_weights(radius, w);
     
     pthread_mutex_lock(&mutex);
     while (!reading_file_done)
@@ -112,19 +130,45 @@ void *other_t(void *tParam) {
     }
     pthread_mutex_unlock(&mutex);
     
+    //blurfilter_part_1(xsize, src, radius, w, intermediate, lproblem[tId][0], lproblem[tId][1]);
+    
+    /* Check all t done filtering part 1 
+    pthread_mutex_lock(&mutex);
+    n_t_done_filter_part_1++;
+    pthread_cond_signal(&cond);
+    while(n_t_done_filter_part_1<NUM_THREADS){
+    	pthread_cond_wait(&cond, &mutex);
+    }
+    pthread_mutex_unlock(&mutex);
+    */
+    //blurfilter_part_2(xsize, ysize, src, radius, w, intermediate, lproblem[tId][0], lproblem[tId][1]);
+    
+    /* Check all t done filtering part 2
+    pthread_mutex_lock(&mutex);
+    n_t_done_filter_part_2++;
+    pthread_cond_signal(&cond);
+    while(n_t_done_filter_part_2<NUM_THREADS){
+    	pthread_cond_wait(&cond, &mutex);
+    }
+    pthread_mutex_unlock(&mutex);
+     */
+    
+    printf("Other thread return\n");
+    return NULL;
 }
-
 
 int main (int argc, char ** argv) {
 	/* Init */
 	pthread_mutex_init(&mutex,NULL);
 	pthread_cond_init(&cond, NULL);
+	reading_file_done=0;
+	n_t_done_filter_part_1=0;
+	n_t_done_filter_part_2=0;
 
 	int radius;
 	/* Take care of arguments */
 	if (argc != 4) {
 		fprintf(stderr, "Usage: %s radius infile outfile\n", argv[0]);
-		exit(1);
 	}
 	radius=atoi(argv[1]);
 		if((radius > MAX_RAD) || (radius < 1)) {
@@ -153,8 +197,10 @@ int main (int argc, char ** argv) {
 		}
 	} 
 	for(t=0;t<NUM_THREADS;t++) {
+		fprintf(stderr, "Before return(0)\n");
 		pthread_join(threads[t], NULL);
 	}
+	
 	
 	return(0);
 }
@@ -186,21 +232,3 @@ void calculate_local_problem_size(const int x,const int y,const int np, int lpro
 		lproblem[i][1]=lysize[i];
 	}
 }
-
-void calculate_local_allocation_size(int ldata[][2], int lproblem[][2],int const ysize , const int np, const int radius){
-	int i;
-	for(i=0; i<np; i++){
-		if(lproblem[i][0] > radius){
-			ldata[i][0]=lproblem[i][0]-radius;
-		}else{
-			ldata[i][0]=0;
-		}
-		
-		if(lproblem[i][0]+lproblem[i][1]-1 + radius < ysize){
-			ldata[i][1]=lproblem[i][0]-ldata[i][0]+lproblem[i][1] + radius;
-		}else{
-			ldata[i][1]=ysize-ldata[i][0];
-		}
-	}
-}
-

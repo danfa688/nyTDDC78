@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include "blurfilter.h"
 #include "ppmio.h"
+#include <stdlib.h>
 
 
 pixel* pix(pixel* image, const int xx, const int yy, const int xsize)
@@ -21,14 +22,11 @@ pixel* pix(pixel* image, const int xx, const int yy, const int xsize)
   return (image + off);
 }
 
-void blurfilter(const int xsize, const int ysize, pixel* src, const int radius, const double *w){
-  int x,y,x2,y2, wi;
+void blurfilter_part_1(const int xsize, const int ysize, pixel* src, const int radius, const double *w, pixel* dst, const int startline, const int ylength){
+  int x,y,x2, wi;
   double r,g,b,n, wc;
-  pixel *dst;
-  dst = malloc(MAX_PIXELS*sizeof(*dst));
 
-
-  for (y=0; y<ysize; y++) {
+  for (y=startline; y<ylength+startline; y++) {
     for (x=0; x<xsize; x++) {
       r = w[0] * pix(src, x, y, xsize)->r;
       g = w[0] * pix(src, x, y, xsize)->g;
@@ -56,6 +54,13 @@ void blurfilter(const int xsize, const int ysize, pixel* src, const int radius, 
       pix(dst,x,y, xsize)->b = b/n;
     }
   }
+}
+
+void blurfilter_part_2(const int xsize, const int ysize, pixel* src, const int radius, const double *w){
+  int x,y,x2,y2, wi;
+  double r,g,b,n, wc;
+  pixel *dst;
+  dst = malloc(MAX_PIXELS*sizeof(*dst));
 
   for (y=0; y<ysize; y++) {
     for (x=0; x<xsize; x++) {
