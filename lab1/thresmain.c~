@@ -176,7 +176,7 @@ int write_txt (const char* fname, const double time, const int np) {
   int errno = 0;
 
   if (fname == NULL) fname = "\0";
-  	fp = fopen (fname, "w");
+  	fp = fopen (fname, "a");
   if (fp == NULL) {
     fprintf (stderr, "write_txt failed to open %s: %s\n", fname,strerror (errno));
     return 1;

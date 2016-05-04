@@ -69,35 +69,35 @@ void *root_t(void *tParam) {
 	
 	pthread_mutex_lock(&mutex);
 	reading_file_done = 1;
-    pthread_cond_signal(&cond); 
+    pthread_cond_broadcast(&cond); 
     pthread_mutex_unlock(&mutex);
 
     printf("Calling filter\n");
 
     clock_gettime(CLOCK_REALTIME, &stime);
 	
-    //blurfilter_part_1(xsize, src, radius, w, intermediate, lproblem[tId][0], lproblem[tId][1]);
+    blurfilter_part_1(xsize, src, radius, w, intermediate, lproblem[tId][0], lproblem[tId][1]);
     
-    /* Check all t done filtering part 1 
+    /* Check all t done filtering part 1 */
     pthread_mutex_lock(&mutex);
     n_t_done_filter_part_1++;
-    pthread_cond_signal(&cond);
+    pthread_cond_broadcast(&cond);
     while(n_t_done_filter_part_1<NUM_THREADS){
     	pthread_cond_wait(&cond, &mutex);
     }
     pthread_mutex_unlock(&mutex);
-    */
-    //blurfilter_part_2(xsize, ysize, src, radius, w, intermediate, lproblem[tId][0], lproblem[tId][1]);
     
-    /* Check all t done filtering part 2 
+    blurfilter_part_2(xsize, ysize, src, radius, w, intermediate, lproblem[tId][0], lproblem[tId][1]);
+    
+    /* Check all t done filtering part 2 */
     pthread_mutex_lock(&mutex);
     n_t_done_filter_part_2++;
-    pthread_cond_signal(&cond);
+    pthread_cond_broadcast(&cond);
     while(n_t_done_filter_part_2<NUM_THREADS){
     	pthread_cond_wait(&cond, &mutex);
     }
     pthread_mutex_unlock(&mutex);
-    	*/
+    	
     clock_gettime(CLOCK_REALTIME, &etime);
 
     printf("Filtering took: %g secs\n", (etime.tv_sec  - stime.tv_sec) +
@@ -106,10 +106,9 @@ void *root_t(void *tParam) {
     /* write result */
     printf("Writing output file\n");
     
-    //if(write_ppm (outfile, xsize, ysize, (char *)src) != 0)
-      //exit(1);
+    if(write_ppm (outfile, xsize, ysize, (char *)src) != 0)
+      exit(1);
       
-   printf("Root thread return\n");
    return NULL;
 }
 
@@ -122,38 +121,35 @@ void *other_t(void *tParam) {
 	tId = myData->threadId;
 	radius = myData->radius;
 
-    /*
     pthread_mutex_lock(&mutex);
     while (!reading_file_done)
     {
     	pthread_cond_wait(&cond, &mutex);
     }
     pthread_mutex_unlock(&mutex);
-    */
-    //blurfilter_part_1(xsize, src, radius, w, intermediate, lproblem[tId][0], lproblem[tId][1]);
     
-    /* Check all t done filtering part 1 
+    blurfilter_part_1(xsize, src, radius, w, intermediate, lproblem[tId][0], lproblem[tId][1]);
+    
+    /* Check all t done filtering part 1 */
     pthread_mutex_lock(&mutex);
     n_t_done_filter_part_1++;
-    pthread_cond_signal(&cond);
+    pthread_cond_broadcast(&cond);
     while(n_t_done_filter_part_1<NUM_THREADS){
     	pthread_cond_wait(&cond, &mutex);
     }
     pthread_mutex_unlock(&mutex);
-    */
-    //blurfilter_part_2(xsize, ysize, src, radius, w, intermediate, lproblem[tId][0], lproblem[tId][1]);
     
-    /* Check all t done filtering part 2
+    blurfilter_part_2(xsize, ysize, src, radius, w, intermediate, lproblem[tId][0], lproblem[tId][1]);
+    
+    /* Check all t done filtering part 2 */
     pthread_mutex_lock(&mutex);
     n_t_done_filter_part_2++;
-    pthread_cond_signal(&cond);
+    pthread_cond_broadcast(&cond);
     while(n_t_done_filter_part_2<NUM_THREADS){
     	pthread_cond_wait(&cond, &mutex);
     }
-    pthread_mutex_unlock(&mutex);
-     */
+    pthread_mutex_unlock(&mutex);   
     
-    printf("Other thread return\n");
     return NULL;
 }
 
@@ -185,7 +181,6 @@ int main (int argc, char ** argv) {
 	for(t=0;t<NUM_THREADS;t++) {
 		thread_data_array[t].threadId = t;
 		thread_data_array[t].radius = radius;
-		printf("In main: creating thread %ld\n", t);
 		if (t == 0) {
 			ret = pthread_create(&threads[t], NULL, root_t, (void *)&thread_data_array[t]);
 		}else{
@@ -197,10 +192,8 @@ int main (int argc, char ** argv) {
 		}
 	} 
 	for(t=0;t<NUM_THREADS;t++) {
-		fprintf(stderr, "Before return(0)\n");
 		pthread_join(threads[t], NULL);
 	}
-	
 	
 	return(0);
 }

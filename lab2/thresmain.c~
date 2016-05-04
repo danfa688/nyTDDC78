@@ -173,7 +173,7 @@ int main (int argc, char ** argv) {
 	thread_data_array[0].infile=argv[1];
 	thread_data_array[0].outfile=argv[2];
 
-	/*Create treads*/
+/*Create treads*/
 	pthread_t threads[NUM_THREADS];
 	int ret;
 	long t;

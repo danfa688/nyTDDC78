@@ -141,17 +141,9 @@ int main (int argc, char *argv[]) {
 	
 			int ydiff = lproblem[me][0] - ldata[me][0];
 			blurfilter(xsize, ysize, local_src, radius, w, ydiff, lproblem[me][1], ldata[me][1]);
-		    
-		    int recvcounts[np];
-			int displs[np];
-			for (i=0; i<np; i++)
-			{
-				recvcounts[i] = lproblem[i][1]*xsize;
-				displs[i] = lproblem[i][0]*xsize;
-			}
-			
+		
 			//Get data from other processes
-			MPI_Gatherv(&local_src[ydiff*xsize], lproblem[me][1]*xsize, pixel_mpi, src, recvcounts, displs, pixel_mpi, 0, com);
+			MPI_Gather(&local_src[ydiff*xsize], lproblem[me][1]*xsize, pixel_mpi, src, lproblem[me][1]*xsize, pixel_mpi, 0, com);
 	
 			endtime = MPI_Wtime(); 
 	

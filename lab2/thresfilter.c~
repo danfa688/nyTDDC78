@@ -22,6 +22,7 @@ void thresfilter_part_2(const int xsize, const int ysize, pixel* src, const int 
   uint i, psum, nump;
 
   nump = xsize * ylength;
+printf("global_sum: %d \n", global_sum);
   for(i = yline*xsize; i < (nump + yline*xsize); i++) {
     psum = (uint)src[i].r + (uint)src[i].g + (uint)src[i].b;
     if(global_sum > psum) {
