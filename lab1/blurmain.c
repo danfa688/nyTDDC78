@@ -122,9 +122,9 @@ int main (int argc, char *argv[]) {
 			get_gauss_weights(radius, w);  //Theoretically only needs to be calculated once
 							//and then sent to other processes
 			//Calculates lproblem, size and lines
-			calculate_local_problem_size(xsize,ysize,np ,me , lproblem);
+			calculate_local_problem_size(xsize,ysize,np, lproblem);
 			//Calculates ldata from lproblem, ldata contains size and lines of the problem and radius
-			calculate_local_allocation_size(ldata, lproblem, ysize, me, np, radius);
+			calculate_local_allocation_size(ldata, lproblem, ysize, np, radius);
 	
 			//Allocate local memory
 			local_src = malloc(ldata[me][1]*xsize*sizeof(*local_src));

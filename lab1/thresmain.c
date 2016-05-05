@@ -8,7 +8,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-void calculate_local_problem_size(const int x,const int y, const int np, const int me, int lproblem[][2]);
+void calculate_local_problem_size(const int x,const int y, const int np, int lproblem[][2]);
 
 int write_txt (const char* fname, const double time, const int np);
 
@@ -104,7 +104,7 @@ int main (int argc, char ** argv) {
 		}
 	
 		//Calculates lproblem, size and lines
-		calculate_local_problem_size(xsize, ysize, np, me, lproblem);
+		calculate_local_problem_size(xsize, ysize, np, lproblem);
 	
 		//Allocate local memory
 		local_src = malloc(lproblem[me][1]*xsize*sizeof(*local_src));
@@ -151,7 +151,7 @@ int main (int argc, char ** argv) {
     MPI_Finalize();
 }
 
-void calculate_local_problem_size(const int x,const int y,const int np, const int me, int lproblem[][2]){
+void calculate_local_problem_size(const int x,const int y,const int np, int lproblem[][2]){
 	int linesize, rest;
 	int lysize[np];
 	linesize = floor(y/np);
