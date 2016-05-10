@@ -37,11 +37,9 @@ program laplsolv
      tmp_end=T(1:n,(local_start+local_size))
    !$omp barrier
    
-     !First column is a special case since tmp_beg needs to be used
-   	 T(1:n,local_start)=(T(0:n-1,local_start)+T(2:n+1,local_start)+T(1:n,local_start+1)+tmp_beg)/4.0D0
-   	 local_error=max(local_error,maxval(abs(tmp2-T(1:n,j))))
+   	T(1:n,local_start)=(T(0:n-1,local_start)+T(2:n+1,local_start)+T(1:n,local_start+1)+tmp_beg)/4.0D0
+   	local_error=max(local_error,maxval(abs(tmp2-T(1:n,j))))
     
-    !Intermediate columns has no boundary values used by other threads
      do j=local_start+1, (local_start+local_size-2)
      	tmp1=T(1:n,j-1)
      	
@@ -51,9 +49,8 @@ program laplsolv
         tmp1=tmp2
      end do
      
-     !Last column is a special case since tmp_end needs to be used
-     T(1:n,local_start+local_size-1)=(T(0:n-1,local_start+local_size-1)+T(2:n+1,local_start+local_size-1)+T(1:n,local_start+local_size-2)+tmp_end)/4.0D0
-   	 local_error=max(local_error,maxval(abs(tmp2-T(1:n,j))))
+    T(1:n,local_start+local_size-1)=(T(0:n-1,local_start+local_size-1)+T(2:n+1,local_start+local_size-1)+T(1:n,local_start+local_size-2)+tmp_end)/4.0D0
+   	local_error=max(local_error,maxval(abs(tmp2-T(1:n,j))))
      
   !$omp critical
      error = max(local_error,error)
