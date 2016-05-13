@@ -1,4 +1,5 @@
 program laplsolv
+Use omp_lib
 !-----------------------------------------------------------------------
 ! Serial program for solving the heat conduction problem 
 ! on a square using the Jacobi method. 
@@ -11,7 +12,7 @@ program laplsolv
   double precision,dimension(n)       :: tmp1,tmp2,tmp_end, tmp_beg
   double precision                    :: error,local_error,x
   real                                :: t1,t0
-  integer                             :: i,j,k,local_start,local_end,nt,me
+  integer                             :: i,j,k,local_start,local_end,nt,me,thr
   character(len=20)                   :: str
   
   ! Set boundary conditions and initial values for the unknowns
@@ -26,20 +27,26 @@ program laplsolv
 
   do k=1,maxiter	
 	error=0.0D0
-	nt = omp_get_num_procs() 
-	
-  !$omp parallel shared(error, nt, n, T) private(local_error, me, local_start, local_size, tmp1, tmp2, tmp_end, tmp_beg)
-  	 local_error=0.0D0
+  
+  !thr = 8
+  !call OMP_SET_NUM_THREADS(thr) 	
+  
+  !$omp parallel shared(error, T) private(nt, local_error, me, local_start, local_size, tmp1, tmp2, tmp_end, tmp_beg)
+  
+         local_error=0.0D0
   	 me = omp_get_thread_num()
-  	 calculate_local_problem_size(n, nt, me, local_start, local_size)
+         nt = omp_get_num_threads() 
+  	 call calculate_local_problem_size(n, nt, me, local_start, local_size)
   	 
      tmp_beg=T(1:n,local_start-1)
      tmp_end=T(1:n,(local_start+local_size))
    !$omp barrier
    
-   	T(1:n,local_start)=(T(0:n-1,local_start)+T(2:n+1,local_start)+T(1:n,local_start+1)+tmp_beg)/4.0D0
-   	local_error=max(local_error,maxval(abs(tmp2-T(1:n,j))))
+     !First column is a special case since tmp_beg needs to be used
+   	 T(1:n,local_start)=(T(0:n-1,local_start)+T(2:n+1,local_start)+T(1:n,local_start+1)+tmp_beg)/4.0D0
+   	 local_error=max(local_error,maxval(abs(tmp2-T(1:n,j))))
     
+    !Intermediate columns has no boundary values used by other threads
      do j=local_start+1, (local_start+local_size-2)
      	tmp1=T(1:n,j-1)
      	
@@ -49,8 +56,9 @@ program laplsolv
         tmp1=tmp2
      end do
      
-    T(1:n,local_start+local_size-1)=(T(0:n-1,local_start+local_size-1)+T(2:n+1,local_start+local_size-1)+T(1:n,local_start+local_size-2)+tmp_end)/4.0D0
-   	local_error=max(local_error,maxval(abs(tmp2-T(1:n,j))))
+     !Last column is a special case since tmp_end needs to be used
+     T(1:n,local_start+local_size-1)=(T(0:n-1,local_start+local_size-1)+T(2:n+1,local_start+local_size-1)+T(1:n, local_start  - 2)+tmp_end)/4.0D0
+   	 local_error=max(local_error,maxval(abs(tmp2-T(1:n,j))))
      
   !$omp critical
      error = max(local_error,error)
@@ -81,7 +89,7 @@ end program laplsolv
 !calculates number of lines and size for each subproblem stored in local_start and local_size
 subroutine calculate_local_problem_size(n_f, nt_f, me_f, local_start, local_size)
 	integer n_f,nt_f, linesize, rest, me_f, linestart, local_start, local_size
-	linesize=floor(n_f/nt_f)
+	linesize=n_f/nt_f
 	rest=mod(n_f,nt_f)
 	if(me<rest) then
 		linesize = linesize + 1
