@@ -68,8 +68,6 @@ Use omp_lib
   !$omp barrier
   end do
 
-
-
   !$omp end parallel
   
   t1= omp_get_wtime()
