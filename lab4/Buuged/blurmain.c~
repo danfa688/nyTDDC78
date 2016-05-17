@@ -131,7 +131,7 @@ int main (int argc, char *argv[]) {
 	
 			//Send data to other processes
 			if(me == 0){
-				for(i=1; i<np-1;i++){
+				for(i=1; i<np;i++){
 					MPI_Send( &(src[ldata[i][0]*xsize]), ldata[i][1]*xsize, pixel_mpi, i, 10, com );
 				}
 				memcpy(local_src, src, ldata[me][1]*xsize*3);	//Copy from src to local src in process 0
