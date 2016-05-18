@@ -36,10 +36,11 @@ int main (int argc, char *argv[]) {
 	MPI_Type_commit( &pixel_mpi);
 	//STOP Create mpi structure
 	
-	//Array with all paricles
+	//Array with all particles
 	pcord_t* particles_array;
 	particles_array = malloc(INIT_NO_PARTICLES*sizeof(*particles_array));
 	
+	//Randomize all particles position, velocity and starting angle
 	int i, r, theta;
 	for(i=0; i< INIT_NO_PARTICLES; i++)
 	{
@@ -51,6 +52,8 @@ int main (int argc, char *argv[]) {
 		particles_array[i]->x = rand()*BOX_HORIZ_SIZE;
 		particles_array[i]->y = rand()*BOX_VERT_SIZE;
 	}
+	
+	
 	
 }
 

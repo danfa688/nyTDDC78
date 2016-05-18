@@ -14,26 +14,28 @@ int main (int argc, char *argv[]) {
     MPI_Comm_rank( com, &me );
 	MPI_Status status;
 	//Create mpi structure
-    pcord_t item;
+    particle_t item;
 
 	MPI_Datatype particle_mpi;
 	int block_lengths [] = {1 , 1, 1, 1};
-	MPI_Datatype block_types [] = {MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT};
-	MPI_Aint start, displ[4];
+	MPI_Datatype block_types [] = {MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_INT};
+	MPI_Aint start, displ[5];
 
 	MPI_Address(&item, &start);
-	MPI_Address(&item.x, &displ[0]);
-	MPI_Address(&item.y, &displ[1]);
-	MPI_Address(&item.vx, &displ[2]);
-	MPI_Address(&item.vy, &displ[3]);
+	MPI_Address(&item.pcord.x, &displ[0]);
+	MPI_Address(&item.pcord.y, &displ[1]);
+	MPI_Address(&item.pcord.vx, &displ[2]);
+	MPI_Address(&item.pcord.vy, &displ[3]);
+	MPI_Address(&item.ptype, &displ[4]);
 
 	displ[0] -= start;
 	displ[1] -= start;
 	displ[2] -= start;
 	displ[3] -= start;
-	MPI_Type_struct(4, block_lengths, displ, block_types, &particle_mpi);
+	displ[4] -= start;
+	MPI_Type_struct(5, block_lengths, displ, block_types, &particle_mpi);
 
-	MPI_Type_commit( &pixel_mpi);
+	MPI_Type_commit( &particle_mpi);
 	//STOP Create mpi structure
 	
 	//Array with all particles
@@ -53,6 +55,13 @@ int main (int argc, char *argv[]) {
 		particles_array[i]->y = rand()*BOX_VERT_SIZE;
 	}
 	
+	// Loop for t seconds
+	// Check particle collisions (collide)
+	// Move particles part of collision (interact)
+	// Move particles that has NOT been part of a collision (feuler)
+	// Check wall collisions and add momentum (wall_collide)
+	// End loop
+	// Sum all momentum absorbed by the wall and divide this with WALL_LENGTH to get the pressure
 	
 	
 }
