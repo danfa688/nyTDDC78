@@ -21,19 +21,23 @@
 #define PARTICLE_BUFFER_SIZE MAX_NO_PARTICLES/5
 #define COMM_BUFFER_SIZE  5*PARTICLE_BUFFER_SIZE
 
-typedef struct {
+struct particle {
   pcord_t  pcord;
   int ptype;        /* Used to simulate mixing of gases */ 
-} particle_t;
+};
 
-typedef struct {
+struct area {
     float x0 ;
     float x1 ;
     float y0 ;
     float y1 ;
     int neighbour_list[3][3]
-} area_t;
+} ;
 
+typedef struct area area_t ;
+
+
+typedef struct particle particle_t;
 
 
 #endif

@@ -4,15 +4,25 @@
 #include <math.h>
 #include "physics.h"
 #include "coordinate.h"
-#include "physics.h"
+#include "extra.h"
 
 int main (int argc, char *argv[]) {
+	if(argc = 54){
+		printf("usage: mpirun N<number_of_processors> program xprocesses yprocesses\n");
+		exit(1);
+	}
+	int np, me;
 	//Init MPI
 	MPI_Init( &argc, &argv );
     MPI_Comm com = MPI_COMM_WORLD;
     MPI_Comm_size( com, &np );
     MPI_Comm_rank( com, &me );
 	MPI_Status status;
+	if ((atoi(argv[1]) * atoi(argv[2])) != np){
+		printf("xprocesses * yprocess must be equal to number of processes allocated in mpirun!\n");
+		MPI_Finalize();
+		exit(1);
+	}
 	//Create mpi structure
     particle_t item;
 
@@ -38,9 +48,10 @@ int main (int argc, char *argv[]) {
 	MPI_Type_commit( &particle_mpi);
 	//STOP Create mpi structure
 	
+	
 	//Array with all particles
-	pcord_t* particles_array;
-	particles_array = malloc(INIT_NO_PARTICLES*sizeof(*particles_array));
+	particle_t* particles_array;
+	particles_array = malloc(MAX_NO_PARTICLES*sizeof(*particles_array));
 	
 	//Randomize all particles position, velocity and starting angle
 	int i, r, theta;
@@ -48,11 +59,11 @@ int main (int argc, char *argv[]) {
 	{
 		r = rand()*MAX_INITIAL_VELOCITY;
 		theta = rand()*2*PI;
-		particles_array[i]->vx = r*cos(theta);
-		particles_array[i]->vy = r*sin(theta);
+		particles_array[i].pcord.vx = r*cos(theta);
+		particles_array[i].pcord.vy = r*sin(theta);
 		
-		particles_array[i]->x = rand()*BOX_HORIZ_SIZE;
-		particles_array[i]->y = rand()*BOX_VERT_SIZE;
+		particles_array[i].pcord.x = rand()*BOX_HORIZ_SIZE;
+		particles_array[i].pcord.y = rand()*BOX_VERT_SIZE;
 	}
 	
 	// Loop for t seconds

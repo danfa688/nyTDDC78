@@ -71,9 +71,7 @@ float collide(pcord_t *p1, pcord_t *p2){
 			else if ((t2>=0)&(t2<=1))
 			return t2;    
 		}
-    }	s and cons of data structure (arrays, linked list etc.) that you use to represent particles.
-•
-Avoid unnecessary communication by sending all particles at once
+    }
     return -1;
 }
 
