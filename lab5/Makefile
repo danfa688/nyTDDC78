@@ -12,7 +12,7 @@ clean:
 main: extra.o physics.o main.o
 	$(CC) -o $@ extra.o physics.o main.o $(LFLAGS)
 
-extra: 
+extra:
 	$(CC) -o $@ extra.o $(LFLAGS)
 
 physics: 

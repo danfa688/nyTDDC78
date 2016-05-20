@@ -9,10 +9,10 @@ all: main
 clean:
 	-$(RM) *.o main extra physics
 
-main: extra.o physics.o
+main: extra.o physics.o main.o
 	$(CC) -o $@ extra.o physics.o main.o $(LFLAGS)
 
-extra: 
+extra:
 	$(CC) -o $@ extra.o $(LFLAGS)
 
 physics: 

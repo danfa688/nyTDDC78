@@ -7,10 +7,7 @@
 #include "extra.h"
 
 int main (int argc, char *argv[]) {
-	if(argc = 54){
-		printf("usage: mpirun N<number_of_processors> program xprocesses yprocesses\n");
-		exit(1);
-	}
+
 	int np, me;
 	//Init MPI
 	MPI_Init( &argc, &argv );
@@ -18,8 +15,20 @@ int main (int argc, char *argv[]) {
     MPI_Comm_size( com, &np );
     MPI_Comm_rank( com, &me );
 	MPI_Status status;
+
+
+	if(argc != 3){
+		if(me == 0){
+			fprintf(stderr,"usage: mpirun n<number_of_processors> program xprocesses yprocesses\n");
+		}
+		MPI_Finalize();			
+		exit(1);
+	}
+	
 	if ((atoi(argv[1]) * atoi(argv[2])) != np){
-		printf("xprocesses * yprocess must be equal to number of processes allocated in mpirun!\n");
+		if(me == 0){
+			printf("xprocesses * yprocess must be equal to number of processes allocated in mpirun!\n");
+		}
 		MPI_Finalize();
 		exit(1);
 	}
@@ -48,23 +57,17 @@ int main (int argc, char *argv[]) {
 	MPI_Type_commit( &particle_mpi);
 	//STOP Create mpi structure
 	
-	
-	//Array with all particles
-	particle_t* particles_array;
-	particles_array = malloc(MAX_NO_PARTICLES*sizeof(*particles_array));
-	
-	//Randomize all particles position, velocity and starting angle
-	int i, r, theta;
-	for(i=0; i< INIT_NO_PARTICLES; i++)
-	{
-		r = rand()*MAX_INITIAL_VELOCITY;
-		theta = rand()*2*PI;
-		particles_array[i].pcord.vx = r*cos(theta);
-		particles_array[i].pcord.vy = r*sin(theta);
-		
-		particles_array[i].pcord.x = rand()*BOX_HORIZ_SIZE;
-		particles_array[i].pcord.y = rand()*BOX_VERT_SIZE;
-	}
+	//Initiate wall - Same for every process
+	cord_t wall;
+	initiate_wall(&wall);
+	//Create local area which each process is responsible over
+	area_t local_area;
+	create_my_area(&local_area, me, BOX_HORIZ_SIZE, BOX_VERT_SIZE, npx, npy)
+
+	//Allocates space to all local particles and initiates them
+	local_area.particles_array = malloc(MAX_NO_PARTICLES*sizeof(*local_area.particles_array));
+	init_particles(&local_area);
+
 	
 	// Loop for t seconds
 	// Check particle collisions (collide)
@@ -74,7 +77,7 @@ int main (int argc, char *argv[]) {
 	// End loop
 	// Sum all momentum absorbed by the wall and divide this with WALL_LENGTH to get the pressure
 	
-	
+	MPI_Finalize();
 }
 
 

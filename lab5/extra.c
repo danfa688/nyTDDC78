@@ -1,6 +1,13 @@
 #include "extra.h"
 #include <math.h>
 
+void init_wall(cord_t* wall){
+	wall.x0 = 0;
+	wall.y0 = 0;
+	wall.x1 = BOX_HORIZ_SIZE;
+	wall.y1 = BOX_VERT_SIZE;
+}
+
 void create_my_area(area_t *my_a, int pid, int width, int height, int npx, int npy){
 	// Calculating the x and y coordinates for the local area
 	coord_calc(my_a, pid, width, height, npx, npy);
@@ -91,6 +98,32 @@ void neigh_calc(area_t* my_a, int pid, int npx, int npy){
 		}
 	}
 }
+// Initiatez all particles by randomizing all particles 
+// position, velocity and starting angle:
+void init_particles(area_t* local_area){
+		int i, r, theta;
+	for(i=0; i< INIT_NO_PARTICLES; i++)
+	{
+		int local_width, local_height;
+		local_width = (local_area->x1) - (local_area->x0) + 1;
+		local_height = (local_area->y1) - (local_area->y0) + 1;
+		r = rand()*MAX_INITIAL_VELOCITY;
+		theta = rand()*2*PI;
+		local_area->particles_array[i].pcord.vx = r*cos(theta);
+		local_area->particles_array[i].pcord.vy = r*sin(theta);
+		
+		local_area->particles_array[i].pcord.x = rand()*local_width;
+		local_area->particles_array[i].pcord.y = rand()*local_height;
+	}
+}
+void timestep(){
+	particle_collision();
+	feuler();
+	wall_collision();
+	communicate();
+}
+
+
 
 
 

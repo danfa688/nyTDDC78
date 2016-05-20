@@ -27,13 +27,13 @@ typedef struct {
 } particle_t;
 
 typedef struct {
-    float x0 ;
-    float x1 ;
-    float y0 ;
-    float y1 ;
-    int neighbour_list[3][3]
+    float x0;
+    float x1;
+    float y0;
+    float y1;
+    int neighbour_list[3][3];
+	particle_t particles_array[MAX_NO_PARTICLES];
+	int no_particles;
 } area_t;
-
-
 
 #endif
