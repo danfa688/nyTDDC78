@@ -2,10 +2,10 @@
 #include <math.h>
 
 void init_wall(cord_t* wall){
-	wall.x0 = 0;
-	wall.y0 = 0;
-	wall.x1 = BOX_HORIZ_SIZE;
-	wall.y1 = BOX_VERT_SIZE;
+	wall->x0 = 0;
+	wall->y0 = 0;
+	wall->x1 = BOX_HORIZ_SIZE;
+	wall->y1 = BOX_VERT_SIZE;
 }
 
 void create_my_area(area_t *my_a, int pid, int width, int height, int npx, int npy){
@@ -94,7 +94,8 @@ void neigh_calc(area_t* my_a, int pid, int npx, int npy){
 	//memcpy(&(my_a->neighbour_list[0]), &(neighbour[0]), 9*sizeof(neighbour[0]));
 	for(i=0; i<3; i++){
 		for(k=0; k<3; k++){
-			(my_a->neighbour_list)[i][k]= neighbour[i][k];
+			(my_a->neighbour_list)[i][k].pid= neighbour[i][k];
+			(my_a->neighbour_list)[i][k].send_buffer_length = 0;
 		}
 	}
 }
@@ -109,34 +110,213 @@ void init_particles(area_t* local_area){
 		local_height = (local_area->y1) - (local_area->y0) + 1;
 		r = rand()*MAX_INITIAL_VELOCITY;
 		theta = rand()*2*PI;
-		local_area->particles_array[i].pcord.vx = r*cos(theta);
-		local_area->particles_array[i].pcord.vy = r*sin(theta);
+		local_area->particle_array[i].pcord.vx = r*cos(theta);
+		local_area->particle_array[i].pcord.vy = r*sin(theta);
 		
-		local_area->particles_array[i].pcord.x = rand()*local_width;
-		local_area->particles_array[i].pcord.y = rand()*local_height;
+		local_area->particle_array[i].pcord.x = rand()*local_width;
+		local_area->particle_array[i].pcord.y = rand()*local_height;
+	}
+	local_area->no_particles = INIT_NO_PARTICLES;
+	local_area->moment = 0;
+}
+
+void init_MPI(particle_t* item,int* me, int* np, MPI_Comm* com, int* argc, char* argv[]){	
+	//Init MPI
+	MPI_Init( argc, &argv );
+    *com = MPI_COMM_WORLD;
+    MPI_Comm_size( *com, np );
+    MPI_Comm_rank( *com, me );
+	MPI_Status status;
+
+	MPI_Datatype particle_mpi;
+	int block_lengths [] = {1 , 1, 1, 1};
+	MPI_Datatype block_types [] = {MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_INT};
+	MPI_Aint start, displ[5];
+
+	MPI_Address(item, &start);
+	MPI_Address(&(item->pcord.x), &displ[0]);
+	MPI_Address(&(item->pcord.y), &displ[1]);
+	MPI_Address(&(item->pcord.vx), &displ[2]);
+	MPI_Address(&(item->pcord.vy), &displ[3]);
+	MPI_Address(&(item->ptype), &displ[4]);
+
+	displ[0] -= start;
+	displ[1] -= start;
+	displ[2] -= start;
+	displ[3] -= start;
+	displ[4] -= start;
+	MPI_Type_struct(5, block_lengths, displ, block_types, &particle_mpi);
+
+	MPI_Type_commit( &particle_mpi);
+}
+
+void swap_particle(particle_t* p1, particle_t* p2){
+  	int tmp_ptype = p1->ptype;
+    float tmp_x = p1->pcord.x;
+    float tmp_y = p1->pcord.y;
+    float tmp_vx = p1->pcord.vx;
+    float tmp_vy = p1->pcord.vy;  
+	
+	p1->ptype = p2->ptype;
+	p1->pcord.x = p2->pcord.x;
+	p1->pcord.y = p2->pcord.y;
+	p1->pcord.vx = p2->pcord.vx;
+	p1->pcord.vy = p2->pcord.vy;
+
+	
+	p2->ptype = tmp_ptype;
+	p2->pcord.x = tmp_x;
+	p2->pcord.y = tmp_y;
+	p2->pcord.vx = tmp_vx;
+	p2->pcord.vy = tmp_vy;  
+}
+
+void time_step(area_t* local_area, cord_t* wall){
+	particle_t p1, p2, tmp;
+	float t;
+	int i, j, bool_collide;
+	//for each particle
+	for(i=0; i<local_area->no_particles-1; i++){
+		bool_collide = 0;
+		p1=local_area->particle_array[i];
+		//for each remaining particle
+		for(j=i+1; j<local_area->no_particles; j++){
+			p2=local_area->particle_array[j];
+			//If two particles collided...
+			t=collide(&(p1.pcord),&(p2.pcord));
+			if(t != -1){
+				//...update their position and velocities ...
+				interact(&(local_area->particle_array[i].pcord),&(local_area->particle_array[j].pcord),t);
+				//...and update total momentum of the two particles.				
+				local_area->moment += wall_collide(&(p1.pcord),*wall);
+				local_area->moment += wall_collide(&(p2.pcord),*wall);
+				//We dont have to check the second particles position again so it's swapped with
+				//the next element.
+				swap_particle(&(local_area->particle_array[j]),&(local_area->particle_array[i+1]));
+				bool_collide = 1;
+				//Increments the iterator since we dont have to update that other particles position again.
+				i++;
+				break;
+			}
+		}
+		if(!bool_collide){
+			feuler(&(local_area->particle_array[i].pcord),STEP_SIZE);
+			local_area->moment += wall_collide(&(p1.pcord),*wall);
+		}
 	}
 }
-void timestep(){
-	particle_collision();
-	feuler();
-	wall_collision();
+
+void handle_boundaries(area_t* local_area){
+	int i;	
+	for(i=0; i<(local_area->no_particles); i++)
+		if(boundary_collide(&(local_area->particle_array[i]), local_area)){
+			move(&(local_area->particle_array[i]),&(local_area->particle_array[local_area->no_particles-1]));
+			(local_area->no_particles)--;
+			i--;
+		}
+	}
+}
+
+void communicate(area_t* local_area, MPI_Comm* com){
+	handle_boundaries();
+	int i,j;
+	for(i=0; i<3; i++){
+		for(j=0; j<3; j++){
+			if(((i!=2) || (j!=2)) && (local_area->neighbour_list[i][j].pid !=-1)){
+				MPI_ISend(local_area->neighbour_list[i][j].send_buffer, 
+							local_area->neighbour_list[i][j].send_buffer_length,
+							particle_mpi, local_area->neighbour_list[i][j].pid, 
+							local_area->neighbour_list[i][j].send_buffer_length,com);			
+			}
+		}
+	}
+	for(i=0; i<3; i++){
+		for(j=0; j<3; j++){
+			if(((i!=2) || (j!=2)) && (local_area->neighbour_list[i][j].pid !=-1)){
+				//TODO: Flytta status till neighbour_list(en för varje). och request wait
+				MPI_Status status;
+				MPI_IProbe(source, tag, comm, &status);
+				MPI_IReceive(local_area->neighbour_list[i][j].receive_buffer, status.MPI_TAG,
+							particle_mpi, local_area->neighbour_list[i][j].pid, 
+							local_area->neighbour_list[i][j].send_buffer_length,com);			
+			}
+		}
+	}
+}
+void simulate(area_t* local_area, MPI_Comm* com){
+	time_step();
 	communicate();
 }
 
+int boundary_collide(particle_t* p, area_t* local_area){
+	int rvalue; 
+	int x0,x1,y0,y1;
+	particle_t* ptr;
+	x0 = local_area->x0;
+	x1 = local_area->x1;
+	y0 = local_area->y0;
+	y1 = local_area->y1;
+	rvalue = 1;
+    if(p->pcord.x < x0){
+		if(p->pcord.y < y0){
+			//Left - Up
+			ptr = &(local_area->neighbour_list[0][0].
+					send_buffer[(local_area->neighbour_list[0][0].send_buffer_length)++]);
+			move(ptr,p);
+		}else if(p->pcord.y > y1){
+			//Left - Down	
+			ptr = &(local_area->neighbour_list[2][0].
+					send_buffer[(local_area->neighbour_list[2][0].send_buffer_length)++]);
+			move(ptr,p);	
+		}else{
+			//Left - Middle
+			ptr = &(local_area->neighbour_list[1][0].
+					send_buffer[(local_area->neighbour_list[1][0].send_buffer_length)++]);
+			move(ptr,p);
+		}	
+    }else if(p->pcord.x > x1){
+		if(p->pcord.y < y0){
+			//Right - Up
+			ptr = &(local_area->neighbour_list[0][2].
+					send_buffer[(local_area->neighbour_list[0][2].send_buffer_length)++]);
+			move(ptr,p);
+		}else if(p->pcord.y > y1){
+			//Right - Down
+			ptr = &(local_area->neighbour_list[2][2].
+					send_buffer[(local_area->neighbour_list[2][2].send_buffer_length)++]);
+			move(ptr,p);		
+		}else{
+			//Right - Middle
+			ptr = &(local_area->neighbour_list[1][2].
+					send_buffer[(local_area->neighbour_list[1][2].send_buffer_length)++]);
+			move(ptr,p);
+		}
+    }else{
+		if(p->pcord.y < y0){
+			//Middle - Up
+			ptr = &(local_area->neighbour_list[0][1].
+					send_buffer[(local_area->neighbour_list[0][1].send_buffer_length)++]);
+			move(ptr,p);
+		}else if(p->pcord.y > y1){
+			//Middle - Down		
+			ptr = &(local_area->neighbour_list[2][1].
+					send_buffer[(local_area->neighbour_list[2][1].send_buffer_length)++]);
+			move(ptr,p);
+		}else{
+			//Local area
+			rvalue = 0;
+		}
+	}
+	return rvalue;
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+void move(particle_t* dest, particle_t* src){
+	dest->pcord.x = src->pcord.x;
+	dest->pcord.y = src->pcord.y;
+	dest->pcord.vx = src->pcord.vx;
+	dest->pcord.vy = src->pcord.vy;
+	dest->ptype = src->ptype;
+}
 
 
 
