@@ -1,8 +1,8 @@
 CC=mpicc
 
-CFLAGS =
+CFLAGS = -Nmpi -g
 
-LFLAGS= -lpthread -lrt -lm
+LFLAGS= -Nmpi -g -lpthread -lrt -lm
 
 all: main 
 
@@ -17,4 +17,3 @@ extra:
 
 physics: 
 	$(CC) -o $@ physics.o $(LFLAGS)
-	
