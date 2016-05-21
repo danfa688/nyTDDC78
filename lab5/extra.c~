@@ -1,6 +1,7 @@
 #include "extra.h"
 #include <math.h>
 
+//------------------------------ START OF INIT -------------------------------
 void init_wall(cord_t* wall){
 	wall->x0 = 0;
 	wall->y0 = 0;
@@ -120,7 +121,7 @@ void init_particles(area_t* local_area){
 	local_area->moment = 0;
 }
 
-void init_MPI(particle_t* item,int* me, int* np, MPI_Comm* com, int* argc, char* argv[]){	
+void init_MPI(particle_t* item, int* me, int* np, MPI_Comm* com, int* argc, char* argv[]){	
 	//Init MPI
 	MPI_Init( argc, &argv );
     *com = MPI_COMM_WORLD;
@@ -128,7 +129,6 @@ void init_MPI(particle_t* item,int* me, int* np, MPI_Comm* com, int* argc, char*
     MPI_Comm_rank( *com, me );
 	MPI_Status status;
 
-	MPI_Datatype particle_mpi;
 	int block_lengths [] = {1 , 1, 1, 1};
 	MPI_Datatype block_types [] = {MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_FLOAT, MPI_INT};
 	MPI_Aint start, displ[5];
@@ -150,25 +150,17 @@ void init_MPI(particle_t* item,int* me, int* np, MPI_Comm* com, int* argc, char*
 	MPI_Type_commit( &particle_mpi);
 }
 
-void swap_particle(particle_t* p1, particle_t* p2){
-  	int tmp_ptype = p1->ptype;
-    float tmp_x = p1->pcord.x;
-    float tmp_y = p1->pcord.y;
-    float tmp_vx = p1->pcord.vx;
-    float tmp_vy = p1->pcord.vy;  
-	
-	p1->ptype = p2->ptype;
-	p1->pcord.x = p2->pcord.x;
-	p1->pcord.y = p2->pcord.y;
-	p1->pcord.vx = p2->pcord.vx;
-	p1->pcord.vy = p2->pcord.vy;
+//------------------------------ END OF INIT -------------------------------
 
-	
-	p2->ptype = tmp_ptype;
-	p2->pcord.x = tmp_x;
-	p2->pcord.y = tmp_y;
-	p2->pcord.vx = tmp_vx;
-	p2->pcord.vy = tmp_vy;  
+
+
+
+void simulate(area_t* local_area, MPI_Comm com, cord_t* wall, int no_steps){
+	int i;
+	for(i=0; i<no_steps; i++){
+		time_step(local_area, wall);
+		communicate(local_area, com);
+	}
 }
 
 void time_step(area_t* local_area, cord_t* wall){
@@ -206,46 +198,80 @@ void time_step(area_t* local_area, cord_t* wall){
 	}
 }
 
-void handle_boundaries(area_t* local_area){
+void communicate(area_t* local_area, MPI_Comm com){
+	add_to_send_buffer(local_area);
+	int i,j;
+	int* flag;
+	for(i=0; i<3; i++){
+		for(j=0; j<3; j++){
+			if(((i!=2) || (j!=2)) && (local_area->neighbour_list[i][j].pid !=-1)){
+				MPI_Isend(local_area->neighbour_list[i][j].send_buffer, 
+							local_area->neighbour_list[i][j].send_buffer_length,
+							particle_mpi, local_area->neighbour_list[i][j].pid, 
+							local_area->neighbour_list[i][j].send_buffer_length, com, 
+							&(local_area->neighbour_list[i][j].send_request));			
+
+				MPI_Iprobe(local_area->neighbour_list[i][j].pid, MPI_ANY_TAG, com, 
+							&(local_area->neighbour_list[i][j].status));
+							
+				MPI_Irecv(local_area->neighbour_list[i][j].receive_buffer, 
+								local_area->neighbour_list[i][j].status.MPI_TAG,
+								particle_mpi, local_area->neighbour_list[i][j].pid, 
+								local_area->neighbour_list[i][j].send_buffer_length, com, 
+								&(local_area->neighbour_list[i][j].recv_request));			
+			}
+		}
+	}
+	
+	for(i=0; i<3; i++){
+		for(j=0; j<3; j++){
+			if(((i!=2) || (j!=2)) && (local_area->neighbour_list[i][j].pid !=-1)){
+				MPI_Wait(&(local_area->neighbour_list[i][j].send_request), MPI_STATUS_IGNORE);
+				local_area->neighbour_list[i][j].send_buffer_length = 0;
+				
+				MPI_Wait(&(local_area->neighbour_list[i][j].recv_request), MPI_STATUS_IGNORE);
+				add_particles_from_buffer(local_area, &(local_area->neighbour_list[i][j]));
+			}
+		}
+	}
+}
+
+float calculate_pressure(area_t* local_area, MPI_Comm com, int time){
+	float global_moment;
+	MPI_Reduce(&(local_area->moment), &global_moment, 1, MPI_FLOAT, MPI_SUM, 0, com);
+	return ((global_moment/WALL_LENGTH)/time);
+}
+
+void swap_particle(particle_t* p1, particle_t* p2){
+  	int tmp_ptype = p1->ptype;
+    float tmp_x = p1->pcord.x;
+    float tmp_y = p1->pcord.y;
+    float tmp_vx = p1->pcord.vx;
+    float tmp_vy = p1->pcord.vy;  
+	
+	p1->ptype = p2->ptype;
+	p1->pcord.x = p2->pcord.x;
+	p1->pcord.y = p2->pcord.y;
+	p1->pcord.vx = p2->pcord.vx;
+	p1->pcord.vy = p2->pcord.vy;
+
+	
+	p2->ptype = tmp_ptype;
+	p2->pcord.x = tmp_x;
+	p2->pcord.y = tmp_y;
+	p2->pcord.vx = tmp_vx;
+	p2->pcord.vy = tmp_vy;  
+}
+
+void add_to_send_buffer(area_t* local_area){
 	int i;	
-	for(i=0; i<(local_area->no_particles); i++)
+	for(i=0; i<(local_area->no_particles); i++){
 		if(boundary_collide(&(local_area->particle_array[i]), local_area)){
 			move(&(local_area->particle_array[i]),&(local_area->particle_array[local_area->no_particles-1]));
 			(local_area->no_particles)--;
 			i--;
 		}
 	}
-}
-
-void communicate(area_t* local_area, MPI_Comm* com){
-	handle_boundaries();
-	int i,j;
-	for(i=0; i<3; i++){
-		for(j=0; j<3; j++){
-			if(((i!=2) || (j!=2)) && (local_area->neighbour_list[i][j].pid !=-1)){
-				MPI_ISend(local_area->neighbour_list[i][j].send_buffer, 
-							local_area->neighbour_list[i][j].send_buffer_length,
-							particle_mpi, local_area->neighbour_list[i][j].pid, 
-							local_area->neighbour_list[i][j].send_buffer_length,com);			
-			}
-		}
-	}
-	for(i=0; i<3; i++){
-		for(j=0; j<3; j++){
-			if(((i!=2) || (j!=2)) && (local_area->neighbour_list[i][j].pid !=-1)){
-				//TODO: Flytta status till neighbour_list(en för varje). och request wait
-				MPI_Status status;
-				MPI_IProbe(source, tag, comm, &status);
-				MPI_IReceive(local_area->neighbour_list[i][j].receive_buffer, status.MPI_TAG,
-							particle_mpi, local_area->neighbour_list[i][j].pid, 
-							local_area->neighbour_list[i][j].send_buffer_length,com);			
-			}
-		}
-	}
-}
-void simulate(area_t* local_area, MPI_Comm* com){
-	time_step();
-	communicate();
 }
 
 int boundary_collide(particle_t* p, area_t* local_area){
@@ -310,12 +336,21 @@ int boundary_collide(particle_t* p, area_t* local_area){
 	return rvalue;
 }
 
+// -------------- Utility -------------------
 void move(particle_t* dest, particle_t* src){
 	dest->pcord.x = src->pcord.x;
 	dest->pcord.y = src->pcord.y;
 	dest->pcord.vx = src->pcord.vx;
 	dest->pcord.vy = src->pcord.vy;
 	dest->ptype = src->ptype;
+}
+
+void add_particles_from_buffer(area_t* local_area, neighbour* from_neighbour){
+	int i;
+	for(i=0; i<(from_neighbour->status.MPI_TAG); i++){
+		move(&(local_area->particle_array[local_area->no_particles]), &(from_neighbour->receive_buffer[i]));
+		(local_area->no_particles)++;
+	}
 }
 
 

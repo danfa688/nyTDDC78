@@ -31,6 +31,9 @@ typedef struct{
 	int send_buffer_length;
 	particle_t send_buffer[COMM_BUFFER_SIZE];
 	particle_t receive_buffer[COMM_BUFFER_SIZE];
+	MPI_Status status;
+	MPI_Request send_request;
+	MPI_Request recv_request;
 } neighbour;
 
 typedef struct {
@@ -39,7 +42,6 @@ typedef struct {
     float y0;
     float y1;
     neighbour neighbour_list[3][3];
-	//int send_buffer_array[COMM_BUFFER_SIZE][3][3];
 
 	particle_t particle_array[MAX_NO_PARTICLES];
 	int no_particles;

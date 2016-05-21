@@ -4,22 +4,23 @@
 
 int main (int argc, char *argv[]) {
 
-	int np, me, npx, npy;
+	int np, me, npx, npy, time;
+	float pressure;
 	MPI_Comm com;
 	MPI_Status status;
 	particle_t item;
 	init_MPI(&item, &np, &me, &com ,&argc, &argv);
 
-	if(argc != 3){
+	if(argc != 4){
 		if(me == 0){
-			fprintf(stderr,"usage: mpirun n<number_of_processors> program xprocesses yprocesses\n");
+			fprintf(stderr,"usage: mpirun n<number_of_processors> program xprocesses yprocesses time\n");
 		}
 		MPI_Finalize();			
 		exit(1);
 	}
 	npx = atoi(argv[1]);
 	npy = atoi(argv[2]); 
-	
+	time = atoi(argv[3]);
 	if ((npx * npy) != np){
 		if(me == 0){
 			printf("xprocesses * yprocess must be equal to number of processes allocated in mpirun!\n");
@@ -38,12 +39,10 @@ int main (int argc, char *argv[]) {
 	//Allocates space to all local particles and initiates them
 	init_particles(&local_area);
 
-	time_step(&local_area, &wall);
-	// Loop for t seconds
-
-
+	simulate(&local_area, com, &wall, time);
+	pressure = calculate_pressure(&local_area, com, time);
 	
-	// Sum all momentum absorbed by the wall and divide this with WALL_LENGTH to get the pressure
+	printf("Simulated pressure: [%f] \n", pressure);
 	
 	MPI_Finalize();
 }
