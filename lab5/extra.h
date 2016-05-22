@@ -32,7 +32,7 @@ void add_to_send_buffer(area_t* local_area);
 
 void move(particle_t* dest, particle_t* src);
 
-void add_particles_from_buffer(area_t* local_area, neighbour* from_neighbour);
+void add_particles_from_buffer(area_t* local_area, neighbour* from_neighbour, int receive_buffer_length);
 
 void simulate(area_t* local_area, MPI_Comm com, cord_t* wall, int time);
 

@@ -29,6 +29,7 @@ typedef struct {
 typedef struct{
 	int pid;
 	int send_buffer_length;
+	int receive_buffer_length;
 	particle_t send_buffer[COMM_BUFFER_SIZE];
 	particle_t receive_buffer[COMM_BUFFER_SIZE];
 	MPI_Status status;
