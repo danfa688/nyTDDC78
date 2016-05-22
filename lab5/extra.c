@@ -209,22 +209,10 @@ void communicate(area_t* local_area, MPI_Comm com){
 							particle_mpi, local_area->neighbour_list[i][j].pid, 
 							local_area->neighbour_list[i][j].send_buffer_length, com, 
 							&(local_area->neighbour_list[i][j].send_request));			
-
-			
 			}
 		}
 	}
 	
-	/*	for(i=0; i<3; i++){
-		for(j=0; j<3; j++){
-		  if((local_area->neighbour_list[i][j].pid !=-1)){
-				MPI_Wait(&(local_area->neighbour_list[i][j].send_request), MPI_STATUS_IGNORE);
-				local_area->neighbour_list[i][j].send_buffer_length = 0;
-				
-				MPI_Wait(&(local_area->neighbour_list[i][j].recv_request), MPI_STATUS_IGNORE);
-				add_particles_from_buffer(local_area, &(local_area->neighbour_list[i][j]));
-			}
-			}*/
 	for(i=2; i>=0; i--){
 	  for(j=2; j>=0; j--){
 	    if((local_area->neighbour_list[i][j].pid !=-1)){
@@ -235,9 +223,11 @@ void communicate(area_t* local_area, MPI_Comm com){
 		       local_area->neighbour_list[i][j].status.MPI_TAG,
 		       particle_mpi, local_area->neighbour_list[i][j].pid, 
 		       MPI_ANY_TAG, com, MPI_STATUS_IGNORE);		
+		       add_particles_from_buffer(local_area, &(local_area->neighbour_list[i][j]));
 	    }
 	  }
 	}
+	
 	for(i=2; i>=0; i--){
 	  for(j=2; j>=0; j--){
 	    if((local_area->neighbour_list[i][j].pid !=-1)){
