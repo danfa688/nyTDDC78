@@ -68,8 +68,11 @@ int main (int argc, char *argv[]) {
 
 	simulate(&local_area, com, &wall, time);
 	pressure = calculate_pressure(&local_area, com, time);
-	if(me==0)
-	printf("Simulated pressure: [%f] \n", pressure);
+	if(me==0){
+		printf("Simulated pressure: %f \n", pressure);
+		int i;
+	printf("Pressure according to the ideal gas law: %f \n", (float)(2*INIT_NO_PARTICLES*np) /(float)(3*BOX_HORIZ_SIZE*BOX_VERT_SIZE)*0.5*1*powf(35,2));
+	}
 	
 	MPI_Finalize();
 }
