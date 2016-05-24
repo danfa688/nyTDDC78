@@ -68,7 +68,7 @@ int main (int argc, char *argv[]) {
 
 	simulate(&local_area, com, &wall, time);
 	pressure = calculate_pressure(&local_area, com, time);
-	
+	if(me==0)
 	printf("Simulated pressure: [%f] \n", pressure);
 	
 	MPI_Finalize();

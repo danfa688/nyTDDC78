@@ -9,8 +9,8 @@
 
 #define PI 3.141592653
 
-#define MAX_NO_PARTICLES  15000  /* Maximum number of particles/processor */
-#define INIT_NO_PARTICLES 500    /* Initial number of particles/processor */
+#define MAX_NO_PARTICLES  100000  /* Maximum number of particles/processor */
+#define INIT_NO_PARTICLES 10000    /* Initial number of particles/processor */
 #define MAX_INITIAL_VELOCITY 50
 
 
@@ -30,8 +30,8 @@ typedef struct{
 	int pid;
 	int send_buffer_length;
 	int receive_buffer_length;
-	particle_t send_buffer[COMM_BUFFER_SIZE];
-	particle_t receive_buffer[COMM_BUFFER_SIZE];
+	particle_t* send_buffer;
+	particle_t* receive_buffer;
 	MPI_Status status;
 	MPI_Request send_request;
 	MPI_Request recv_request;
@@ -44,7 +44,7 @@ typedef struct {
     float y1;
     neighbour neighbour_list[3][3];
 
-	particle_t particle_array[MAX_NO_PARTICLES];
+	particle_t* particle_array;
 	int no_particles;
 	float moment;
 } area_t;
