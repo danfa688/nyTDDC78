@@ -31,6 +31,7 @@ int xsize, ysize;
 
 /* Function declaration */
 void calculate_local_problem_size(const int x,const int y,const int np, int lproblem[][2]);
+int write_txt (const char* fname, const double time, const int np);
 
  void *root_t(void *tParam) {
 	struct thread_data *myData;
@@ -110,7 +111,7 @@ void calculate_local_problem_size(const int x,const int y,const int np, int lpro
     /* write result */
     printf("Writing output file\n");
     
-    if(write_ppm (outfile, xsize, ysize, (char *)src) != 0)
+    if(write_txt (outfile, (etime.tv_sec  - stime.tv_sec) + 1e-9*(etime.tv_nsec  - stime.tv_nsec), NUM_THREADS) != 0)
       exit(1);
       
    return NULL;
@@ -164,33 +165,55 @@ int main (int argc, char ** argv) {
 	global_sum_done = 0;
 	n_t_done_filter_part_1=0;
 	n_t_done_filter_part_2=0;
-
-    /* Take care of arguments */
-	if (argc != 3) {
-		fprintf(stderr, "Usage: %s infile outfile\n", argv[0]);
-	}
 	
-	thread_data_array[0].infile=argv[1];
-	thread_data_array[0].outfile=argv[2];
+	char* imagename;
+	char* filename;
+	int imagecounter;
 
-	/*Create treads*/
-	pthread_t threads[NUM_THREADS];
-	int ret;
-	long t;
-	for(t=0;t<NUM_THREADS;t++) {
-		thread_data_array[t].threadId = t;
-		if (t == 0) {
-			ret = pthread_create(&threads[t], NULL, root_t, (void *)&thread_data_array[t]);
-		}else{
-			ret = pthread_create(&threads[t], NULL, other_t, (void *)&thread_data_array[t]);
+    for(imagecounter = 0; imagecounter<4; imagecounter++)
+    {
+    	switch(imagecounter)
+    	{
+    		case 0: 
+    		imagename = "im1.ppm";
+			filename = "im1blur.txt";
+			break;
+			case 1: 
+    		imagename = "im2.ppm";
+			filename = "im2blur.txt";
+			break;
+			case 2: 
+    		imagename = "im3.ppm";
+			filename = "im3blur.txt";
+			break;
+			case 3: 
+    		imagename = "im4.ppm";
+			filename = "im4blur.txt";
+			break;
+    	}
+    	
+    	thread_data_array[0].infile=imagename;
+	    thread_data_array[0].outfile=filename;
+
+		/*Create treads*/
+		pthread_t threads[NUM_THREADS];
+		int ret;
+		long t;
+		for(t=0;t<NUM_THREADS;t++) {
+			thread_data_array[t].threadId = t;
+			if (t == 0) {
+				ret = pthread_create(&threads[t], NULL, root_t, (void *)&thread_data_array[t]);
+			}else{
+				ret = pthread_create(&threads[t], NULL, other_t, (void *)&thread_data_array[t]);
+			}
+			if (ret) {
+				printf("ERROR! Return code: %d\n", ret);
+				exit(-1);
+			}
+		} 
+		for(t=0;t<NUM_THREADS;t++) {
+			pthread_join(threads[t], NULL);
 		}
-		if (ret) {
-			printf("ERROR! Return code: %d\n", ret);
-			exit(-1);
-		}
-	} 
-	for(t=0;t<NUM_THREADS;t++) {
-		pthread_join(threads[t], NULL);
 	}
 	
 	return(0);
@@ -221,3 +244,25 @@ void calculate_local_problem_size(const int x,const int y,const int np, int lpro
 		lproblem[i][1]=lysize[i];
 	}
 }
+
+
+int write_txt (const char* fname, const double time, const int np) {
+
+  FILE * fp;
+  int errno = 0;
+
+  if (fname == NULL) fname = "\0";
+  	fp = fopen (fname, "a");
+  if (fp == NULL) {
+    fprintf (stderr, "write_txt failed to open %s: %s\n", fname,strerror (errno));
+    return 1;
+  }
+  
+  fprintf(fp, "%d %f \n", np, time);
+  if (fclose (fp) == EOF) {
+    perror ("Close failed");
+    return 3;
+  }
+  return 0;
+}
+
