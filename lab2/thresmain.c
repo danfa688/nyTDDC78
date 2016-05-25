@@ -6,7 +6,7 @@
 #include "thresfilter.h"
 #include <math.h>
 
-#define NUM_THREADS 4
+#define NUM_THREADS 16
 
 /* Global variables*/
 pixel* src;
