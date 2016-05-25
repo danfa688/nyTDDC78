@@ -1,3 +1,11 @@
+# Ignore all
+*
+
+# Unignore all with extensions
+!*.*
+
+core.*
+
 # Object files
 *.o
 *.ko
@@ -32,6 +40,7 @@
 *.i*86
 *.x86_64
 *.hex
+
 
 # Debug files
 *.dSYM/
