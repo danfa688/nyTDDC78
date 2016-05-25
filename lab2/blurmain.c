@@ -7,7 +7,7 @@
 #include "blurfilter.h"
 #include "gaussw.h"
 #include <math.h>
-#define NUM_THREADS 4
+#define NUM_THREADS 16
 #define MAX_RAD 3000
  
 /* Global variables*/
