@@ -160,11 +160,17 @@ void init_MPI(particle_t* item, int* me, int* np, MPI_Comm com, int* argc, char*
 
 
 void simulate(area_t* local_area, MPI_Comm com, cord_t* wall, int no_steps){
-	int i;
+  int i, me;
+  MPI_Comm_rank(com, &me);
 	for(i=0; i<no_steps; i++){
 		time_step(local_area, wall);
-		communicate(local_area, com);
+	if(me==0){
+	  printf("No particles before: %d, Moment: %f \n", local_area->no_particles, local_area->moment);
 	}
+		communicate(local_area, com);
+
+	}
+
 }
 
 void time_step(area_t* local_area, cord_t* wall){
@@ -277,6 +283,7 @@ void add_to_send_buffer(area_t* local_area){
 			move(&(local_area->particle_array[i]),&(local_area->particle_array[local_area->no_particles-1]));
 			(local_area->no_particles)--;
 			i--;
+			printf("Here");
 		}
 	}
 }
@@ -353,11 +360,15 @@ void move(particle_t* dest, particle_t* src){
 }
 
 void add_particles_from_buffer(area_t* local_area, neighbour* from_neighbour, int receive_buffer_length){
-	int i;
+  int i, me;
 	for(i=0; i<receive_buffer_length; i++){
 		move(&(local_area->particle_array[local_area->no_particles]), &(from_neighbour->receive_buffer[i]));
 		(local_area->no_particles)++;
 	}
+	MPI_Comm_rank(MPI_COMM_WORLD,&me);
+	  if(me==0){
+	    printf("Recive buffer length: %d, Me: %d \n", receive_buffer_length, me);
+	  }
 }
 
 
