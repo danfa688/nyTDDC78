@@ -1,0 +1,32 @@
+load result.dat
+load result_extra.dat
+
+t=1;
+np=2;
+n=3;
+
+proc8=10:12;
+size1000=1:3:13;
+
+size_proc=[7 11 15];
+%%
+
+close all
+h=figure;
+plot(result_extra(proc8,n).^2,result_extra(proc8,t));
+title('8 processes')
+xlabel('problem size [n^2]');
+ylabel('time [s]')
+
+
+h=figure;
+plot(result_extra(size1000,np),result_extra(size1000,t));
+title('n=1000')
+xlabel('number of processes');
+ylabel('time [s]')
+
+h=figure;
+plot((result_extra(size_proc,n).^2)./result_extra(size_proc,np),result_extra(size_proc,t));
+title('baj?')
+xlabel('problem size / number of processes [n^2/np]');
+ylabel('time [s]')
