@@ -6,13 +6,13 @@ Use omp_lib
 ! Written by Fredrik Berntsson (frber@math.liu.se) March 2003
 ! Modified by Berkant Savas (besav@math.liu.se) April 2006
 !-----------------------------------------------------------------------
-  integer, parameter                  :: n=1000, maxiter=1000
+  integer, parameter                  :: n=3000, maxiter=1000
   double precision,parameter          :: tol=1.0E-3
   double precision,dimension(0:n+1,0:n+1) :: T
   double precision,dimension(n)       :: tmp1,tmp2,tmp_end
   double precision                    :: error,local_error,x
   double precision                    :: t1,t0
-  integer                             :: i,j,k,local_start,local_end,nt,me,k_g
+  integer                             :: i,j,k,local_start,local_end,nt,me,k_g,nt_g
   character(len=20)                   :: str
   
   ! Set boundary conditions and initial values for the unknowns
@@ -25,7 +25,7 @@ Use omp_lib
   ! Solve the linear system of equations using the Jacobi method
   t0= omp_get_wtime()
 
-  !$omp parallel shared(error, T, k_g) private(k, nt, local_error, me, local_start, local_size, tmp1, tmp2, tmp_end)
+  !$omp parallel shared(error, T, k_g, nt_g) private(k, nt, local_error, me, local_start, local_size, tmp1, tmp2, tmp_end)
 
   me = omp_get_thread_num()
   nt = omp_get_num_threads() 
@@ -36,6 +36,7 @@ Use omp_lib
   !$omp single	
      error=0.0D0
      k_g=k;
+     nt_g=nt
   !$omp end single nowait
      local_error=0.0D0
  
@@ -73,18 +74,22 @@ Use omp_lib
   
   t1= omp_get_wtime()
 
-  write(unit=*,fmt=*) 'Time:',t1-t0,'Number of Iterations:',k_g
+  write(unit=*,fmt=*) 'Time:',t1-t0,'Number of Iterations:',k_g, 'Size: ', n
   write(unit=*,fmt=*) 'Temperature of element T(1,1)  =',T(1,1)
 
   ! Uncomment the next part if you want to write the whole solution
   ! to a file. Useful for plotting. 
   
-  !open(unit=7,action='write',file='result.dat',status='unknown')
-  !write(unit=str,fmt='(a,i6,a)') '(',N,'F10.6)'
+!  open(unit=7,action='write',file='result.dat',status='unknown')
+ ! write(unit=str,fmt='(a,i6,a)') '(',N,'F10.6)'
   !do i=0,n+1
-  !   write (unit=7,fmt=str) T(i,0:n+1)  
-  !end do
-  !close(unit=7)
+   !  write (unit=7,fmt=str) T(i,0:n+1)  
+ ! end do
+ ! close(unit=7)
+
+  open(unit=7,action='write',file='result_extra.dat',status='unknown',position='append')
+  write(unit=7,fmt=*) t1-t0,nt_g,n,k_g
+  close(unit=7)
 end program laplsolv
 
 !calculates number of lines and size for each subproblem stored in local_start and local_size
