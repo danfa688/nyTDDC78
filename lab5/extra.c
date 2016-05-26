@@ -37,7 +37,7 @@ void coord_calc(area_t* my_a, int pid, int width, int height, int npx, int npy){
 	// Calculating Y-coordinates
 	local_size = height/npy;
 	rest = height%npy;
-	tmp = pid/npy;
+	tmp = pid/npx;
 	if(tmp < rest){
 		y0 = tmp * (local_size + 1);
 		y1 = y0 + local_size+1;
@@ -97,6 +97,7 @@ void neigh_calc(area_t* my_a, int pid, int npx, int npy){
 		for(k=0; k<3; k++){
 			(my_a->neighbour_list)[i][k].pid= neighbour[i][k];
 			(my_a->neighbour_list)[i][k].send_buffer_length = 0;
+			(my_a->neighbour_list)[i][k].receive_buffer_length = 0;
 			(my_a->neighbour_list)[i][k].send_buffer=malloc(sizeof(particle_t)*COMM_BUFFER_SIZE);
 			(my_a->neighbour_list)[i][k].receive_buffer=malloc(sizeof(particle_t)*COMM_BUFFER_SIZE);
 		}
