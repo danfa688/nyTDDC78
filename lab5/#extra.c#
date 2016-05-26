@@ -25,13 +25,13 @@ void coord_calc(area_t* my_a, int pid, int width, int height, int npx, int npy){
 	tmp = pid%npx;
 	if(tmp < rest){
 	  x0 = tmp * (local_size+1);
-		x1 = x0 + local_size+1;
+	  x1 = x0 + local_size+1;
 	}else if (tmp == rest){
 	  x0 = tmp * (local_size+1);
-		x1 = x0 + local_size;
+	  x1 = x0 + local_size;
 	}else{
-		x0 = tmp * local_size + rest;
-		x1 = x0 + local_size;
+	  x0 = tmp * local_size + rest;
+	  x1 = x0 + local_size;
 	}
 	
 	// Calculating Y-coordinates

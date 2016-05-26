@@ -1,8 +1,8 @@
 CC=mpicc
 
-CFLAGS = -Nmpi
+CFLAGS = -Nmpi -g
 
-LFLAGS= -Nmpi -lpthread -lrt -lm
+LFLAGS= -Nmpi -g -lpthread -lrt -lm
 
 all: main 
 
