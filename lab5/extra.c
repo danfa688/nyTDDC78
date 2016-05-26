@@ -25,13 +25,13 @@ void coord_calc(area_t* my_a, int pid, int width, int height, int npx, int npy){
 	tmp = pid%npx;
 	if(tmp < rest){
 	  x0 = tmp * (local_size+1);
-		x1 = x0 + local_size+1;
+	  x1 = x0 + local_size+1;
 	}else if (tmp == rest){
 	  x0 = tmp * (local_size+1);
-		x1 = x0 + local_size;
+	  x1 = x0 + local_size;
 	}else{
-		x0 = tmp * local_size + rest;
-		x1 = x0 + local_size;
+	  x0 = tmp * local_size + rest;
+	  x1 = x0 + local_size;
 	}
 	
 	// Calculating Y-coordinates
@@ -170,7 +170,6 @@ void simulate(area_t* local_area, MPI_Comm com, cord_t* wall, int no_steps){
 		communicate(local_area, com);
 
 	}
-
 }
 
 void time_step(area_t* local_area, cord_t* wall){
@@ -269,7 +268,6 @@ void swap_particle(particle_t* p1, particle_t* p2){
 	p1->pcord.vx = p2->pcord.vx;
 	p1->pcord.vy = p2->pcord.vy;
 
-	
 	p2->ptype = tmp_ptype;
 	p2->pcord.x = tmp_x;
 	p2->pcord.y = tmp_y;
