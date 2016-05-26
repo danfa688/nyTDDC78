@@ -24,14 +24,14 @@ void coord_calc(area_t* my_a, int pid, int width, int height, int npx, int npy){
 	rest = width%npx;
 	tmp = pid%npx;
 	if(tmp < rest){
-		x0 = tmp * (local_size + 1);
-		x1 = x0 + local_size;
+	  x0 = tmp * (local_size+1);
+		x1 = x0 + local_size+1;
 	}else if (tmp == rest){
-		x0 = tmp * (local_size + 1);
-		x1 = x0 + local_size - 1;
+	  x0 = tmp * (local_size+1);
+		x1 = x0 + local_size;
 	}else{
 		x0 = tmp * local_size + rest;
-		x1 = x0 + local_size - 1;
+		x1 = x0 + local_size;
 	}
 	
 	// Calculating Y-coordinates
@@ -40,13 +40,13 @@ void coord_calc(area_t* my_a, int pid, int width, int height, int npx, int npy){
 	tmp = pid/npy;
 	if(tmp < rest){
 		y0 = tmp * (local_size + 1);
-		y1 = y0 + local_size;
+		y1 = y0 + local_size+1;
 	}else if (tmp == rest){
 		y0 = tmp * (local_size + 1);
-		y1 = y0 + local_size - 1;
+		y1 = y0 + local_size;
 	}else{
 		y0 = tmp * local_size + rest;
-		y1 = y0 + local_size - 1;
+		y1 = y0 + local_size;
 	}
 	
 	my_a->x0 = x0;
@@ -97,6 +97,8 @@ void neigh_calc(area_t* my_a, int pid, int npx, int npy){
 		for(k=0; k<3; k++){
 			(my_a->neighbour_list)[i][k].pid= neighbour[i][k];
 			(my_a->neighbour_list)[i][k].send_buffer_length = 0;
+			(my_a->neighbour_list)[i][k].send_buffer=malloc(sizeof(particle_t)*COMM_BUFFER_SIZE);
+			(my_a->neighbour_list)[i][k].receive_buffer=malloc(sizeof(particle_t)*COMM_BUFFER_SIZE);
 		}
 	}
 }
@@ -105,6 +107,9 @@ void neigh_calc(area_t* my_a, int pid, int npx, int npy){
 void init_particles(area_t* local_area){
   int i;
   float r, theta;
+  local_area->particle_array = malloc(sizeof(particle_t)*MAX_NO_PARTICLES);
+  int seed = time(NULL);
+  srand(seed);
 	for(i=0; i< INIT_NO_PARTICLES; i++)
 	{
 		int local_width, local_height;
@@ -115,8 +120,8 @@ void init_particles(area_t* local_area){
 		local_area->particle_array[i].pcord.vx = r*cos(theta);
 		local_area->particle_array[i].pcord.vy = r*sin(theta);
 		
-		local_area->particle_array[i].pcord.x = (float)rand()/(float)RAND_MAX*(float)local_width;
-		local_area->particle_array[i].pcord.y = (float)rand()/(float)RAND_MAX*(float)local_height;
+		local_area->particle_array[i].pcord.x = local_area->x0 + (float)rand()/(float)RAND_MAX*(float)local_width;
+		local_area->particle_array[i].pcord.y = local_area->y0 + (float)rand()/(float)RAND_MAX*(float)local_height;
 	}
 	local_area->no_particles = INIT_NO_PARTICLES;
 	local_area->moment = 0;
@@ -155,11 +160,17 @@ void init_MPI(particle_t* item, int* me, int* np, MPI_Comm com, int* argc, char*
 
 
 void simulate(area_t* local_area, MPI_Comm com, cord_t* wall, int no_steps){
-	int i;
+  int i, me;
+  MPI_Comm_rank(com, &me);
 	for(i=0; i<no_steps; i++){
 		time_step(local_area, wall);
-		communicate(local_area, com);
+	if(me==0){
+	  printf("No particles before: %d, Moment: %f \n", local_area->no_particles, local_area->moment);
 	}
+		communicate(local_area, com);
+
+	}
+
 }
 
 void time_step(area_t* local_area, cord_t* wall){
@@ -172,7 +183,7 @@ void time_step(area_t* local_area, cord_t* wall){
 		p1=&(local_area->particle_array[i]);
 		//for each remaining particle
 		for(j=i+1; j<local_area->no_particles; j++){
-		  p2=&(local_area->particle_array[j]);
+		  	p2=&(local_area->particle_array[j]);
 			//If two particles collided...
 			t=collide(&(p1->pcord),&(p2->pcord));
 			if(t != -1){
@@ -191,7 +202,7 @@ void time_step(area_t* local_area, cord_t* wall){
 			}
 		}
 		if(!bool_collide){
-			feuler(&(local_area->particle_array[i].pcord),STEP_SIZE);
+			feuler(&(p1->pcord),STEP_SIZE);
 			local_area->moment += wall_collide(&(p1->pcord),*wall);
 		}
 	}
@@ -200,51 +211,42 @@ void time_step(area_t* local_area, cord_t* wall){
 void communicate(area_t* local_area, MPI_Comm com){
 	add_to_send_buffer(local_area);
 	int i,j;
-	int flag = 1;
-	for(i=0; i<3; i++){
-		for(j=0; j<3; j++){
+	
+	for(i=2; i>=0; i--){
+		for(j=2; j>=0; j--){
 			if((local_area->neighbour_list[i][j].pid !=-1)){
-				MPI_Isend(local_area->neighbour_list[i][j].send_buffer, 
-							local_area->neighbour_list[i][j].send_buffer_length,
-							particle_mpi, local_area->neighbour_list[i][j].pid, 
-							local_area->neighbour_list[i][j].send_buffer_length, com, 
-							&(local_area->neighbour_list[i][j].send_request));			
-
-			
+				MPI_Irecv(local_area->neighbour_list[i][j].receive_buffer, 
+				COMM_BUFFER_SIZE, particle_mpi, local_area->neighbour_list[i][j].pid, 
+				MPI_ANY_TAG, com, &(local_area->neighbour_list[i][j].recv_request));		
+	
 			}
 		}
 	}
-	
-	/*	for(i=0; i<3; i++){
+	for(i=0; i<3; i++){
 		for(j=0; j<3; j++){
-		  if((local_area->neighbour_list[i][j].pid !=-1)){
-				MPI_Wait(&(local_area->neighbour_list[i][j].send_request), MPI_STATUS_IGNORE);
-				local_area->neighbour_list[i][j].send_buffer_length = 0;
-				
-				MPI_Wait(&(local_area->neighbour_list[i][j].recv_request), MPI_STATUS_IGNORE);
-				add_particles_from_buffer(local_area, &(local_area->neighbour_list[i][j]));
+			if((local_area->neighbour_list[i][j].pid !=-1)){
+				MPI_Send(local_area->neighbour_list[i][j].send_buffer, 
+						local_area->neighbour_list[i][j].send_buffer_length,
+						particle_mpi, local_area->neighbour_list[i][j].pid, 
+						1, com);			
 			}
-			}*/
-	for(i=2; i>=0; i--){
-	  for(j=2; j>=0; j--){
-	    if((local_area->neighbour_list[i][j].pid !=-1)){
-	      MPI_Probe(local_area->neighbour_list[i][j].pid, MPI_ANY_TAG, com,
-			&(local_area->neighbour_list[i][j].status));
-							
-	      MPI_Recv(local_area->neighbour_list[i][j].receive_buffer, 
-		       local_area->neighbour_list[i][j].status.MPI_TAG,
-		       particle_mpi, local_area->neighbour_list[i][j].pid, 
-		       MPI_ANY_TAG, com, MPI_STATUS_IGNORE);		
-	    }
-	  }
+		}
 	}
 	for(i=2; i>=0; i--){
-	  for(j=2; j>=0; j--){
-	    if((local_area->neighbour_list[i][j].pid !=-1)){
-				MPI_Wait(&(local_area->neighbour_list[i][j].send_request), MPI_STATUS_IGNORE);
+		for(j=2; j>=0; j--){
+			if((local_area->neighbour_list[i][j].pid !=-1)){
+			  
+				MPI_Wait(&(local_area->neighbour_list[i][j].recv_request), 
+						&(local_area->neighbour_list[i][j].status));
+				MPI_Get_count(&(local_area->neighbour_list[i][j].status),
+								particle_mpi, &(local_area->
+								neighbour_list[i][j].receive_buffer_length));
 				local_area->neighbour_list[i][j].send_buffer_length = 0;
-	    }
-	  }
+				add_particles_from_buffer(local_area,
+						&(local_area->neighbour_list[i][j]),
+						local_area->neighbour_list[i][j].receive_buffer_length);
+			}
+		}
 	}
 }
 
@@ -357,12 +359,16 @@ void move(particle_t* dest, particle_t* src){
 	dest->ptype = src->ptype;
 }
 
-void add_particles_from_buffer(area_t* local_area, neighbour* from_neighbour){
-	int i;
-	for(i=0; i<(from_neighbour->status.MPI_TAG); i++){
+void add_particles_from_buffer(area_t* local_area, neighbour* from_neighbour, int receive_buffer_length){
+  int i, me;
+	for(i=0; i<receive_buffer_length; i++){
 		move(&(local_area->particle_array[local_area->no_particles]), &(from_neighbour->receive_buffer[i]));
 		(local_area->no_particles)++;
 	}
+	MPI_Comm_rank(MPI_COMM_WORLD,&me);
+	  if(me==0){
+	    printf("Receive buffer length: %d, Me: %d \n", receive_buffer_length, me);
+	  }
 }
 
 

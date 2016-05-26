@@ -35,9 +35,6 @@ int main (int argc, char *argv[]) {
 
 	MPI_Type_commit( &particle_mpi);
 
-
-
-
 	if(argc != 4){
 		if(me == 0){
 			fprintf(stderr,"usage: mpirun n<number_of_processors> program xprocesses yprocesses time\n");

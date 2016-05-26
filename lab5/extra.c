@@ -183,7 +183,7 @@ void time_step(area_t* local_area, cord_t* wall){
 		p1=&(local_area->particle_array[i]);
 		//for each remaining particle
 		for(j=i+1; j<local_area->no_particles; j++){
-		  p2=&(local_area->particle_array[j]);
+		  	p2=&(local_area->particle_array[j]);
 			//If two particles collided...
 			t=collide(&(p1->pcord),&(p2->pcord));
 			if(t != -1){
@@ -202,7 +202,7 @@ void time_step(area_t* local_area, cord_t* wall){
 			}
 		}
 		if(!bool_collide){
-			feuler(&(local_area->particle_array[i].pcord),STEP_SIZE);
+			feuler(&(p1->pcord),STEP_SIZE);
 			local_area->moment += wall_collide(&(p1->pcord),*wall);
 		}
 	}
@@ -241,10 +241,12 @@ void communicate(area_t* local_area, MPI_Comm com){
 				MPI_Get_count(&(local_area->neighbour_list[i][j].status),
 								particle_mpi, &(local_area->
 								neighbour_list[i][j].receive_buffer_length));
+								
 				local_area->neighbour_list[i][j].send_buffer_length = 0;
 				add_particles_from_buffer(local_area,
 						&(local_area->neighbour_list[i][j]),
 						local_area->neighbour_list[i][j].receive_buffer_length);
+				local_area->neighbour_list[i][j].receive_buffer_length = 0;
 			}
 		}
 	}
@@ -365,9 +367,10 @@ void add_particles_from_buffer(area_t* local_area, neighbour* from_neighbour, in
 		move(&(local_area->particle_array[local_area->no_particles]), &(from_neighbour->receive_buffer[i]));
 		(local_area->no_particles)++;
 	}
+	
 	MPI_Comm_rank(MPI_COMM_WORLD,&me);
 	  if(me==0){
-	    printf("Recive buffer length: %d, Me: %d \n", receive_buffer_length, me);
+	    printf("Receive buffer length: %d, Me: %d \n", receive_buffer_length, me);
 	  }
 }
 
